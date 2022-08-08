@@ -5,13 +5,19 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum ServerType {
+  QAT
+  STAG
+  PROD
+}
+
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id         Int         @id @default(autoincrement())
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
   email      String      @unique
   firstName  String
   lastName   String
@@ -23,71 +29,140 @@ model User {
 }
 
 model PpeServer {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  type      String
-  env       String
-  url       String    @unique
-  version   String?
-  online    Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-  lastCheck DateTime
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  name       String      @unique
+  type       ServerType  @default(QAT)
+  env        String
+  url        String      @unique
+  version    String?
+  online     Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+  lastCheck  DateTime
+  logicTests LogicTest[]
+  LoadTest   LoadTest[]
 
   @@unique([type, env])
 }
 
 model LogicTest {
-  id           Int             @id @default(autoincrement())
+  id           String          @id @default(auto()) @map("_id") @db.ObjectId
   name         String?
   env          String
+  ppe          PpeServer       @relation(fields: [ppeServerId], references: [id])
+  ppeServerId  String          @db.ObjectId
   geolocations BoGeolocation[]
   testcases    Testcase[]
   testcaseId   Int
   reports      String[]
   createdAt    DateTime        @default(now())
   author       User            @relation(references: [id], fields: [userId])
-  userId       Int
+  userId       String          @db.ObjectId
 }
 
 model LoadTest {
-  id         Int      @id @default(autoincrement())
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String?
+  env         String
+  reports     String[]
+  ppe         PpeServer @relation(fields: [ppeServerId], references: [id])
+  ppeServerId String    @db.ObjectId
+  author      User      @relation(references: [id], fields: [userId])
+  userId      String    @db.ObjectId
+  testcase    Testcase  @relation(fields: [testcaseId], references: [id])
+  testcaseId  String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+}
+
+enum Solution {
+  android
+  ios
+}
+
+type Beacon {
+  uuid     String
+  major    Int
+  minor    Int
+  name     String?
+  type     String?
+  accuracy String?
+  inEffect Int?
+  ip       String?
+  txPower  Int?
+}
+
+type MasterBeacon {
+  uuid       String
+  major      Int
+  minor      Int
   name       String?
-  env        String
-  reports    String[]
-  author     User     @relation(references: [id], fields: [userId])
-  userId     Int
-  testcase   Testcase @relation(fields: [testcaseId], references: [id])
-  testcaseId Int
-  createdAt  DateTime @default(now())
+  type       String?
+  accuracy   String?
+  inEffect   Int?
+  ip         String?
+  txPower    Int?
+  pibeaconId String
+}
+
+type PinpointZone {
+  boundaryName String
+  boundaryID   Int
+  pibeaconID   Int
+}
+
+type RequestOption {
+  deviceRuleEnabled            Boolean @default(true)
+  boundaryRuleEnabled          Boolean @default(true)
+  piBeaconInculsionRuleEnabled Boolean @default(true)
+}
+
+type RequestBody {
+  operatorId Int
+  time       String
+  solution   Solution
+  beacons    Beacon[]
+  options    RequestOption
+}
+
+type ExpectResponse {
+  message          String
+  status           Int
+  masterBeacons    MasterBeacon[]
+  negativeBeacons  Beacon[]
+  unknownBeacons   Beacon[]
+  taggedBoundaries PinpointZone[]
 }
 
 model Testcase {
-  id          Int        @id @default(autoincrement())
-  name        String
-  env         String
-  loadTest    LoadTest[]
-  logicTest   LogicTest? @relation(fields: [logicTestId], references: [id])
-  logicTestId Int?
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  env              String
+  loadTest         LoadTest[]
+  logicTest        LogicTest?     @relation(fields: [logicTestId], references: [id])
+  logicTestId      String         @db.ObjectId
+  requestBody      RequestBody
+  expectedResponse ExpectResponse
+}
+
+model BoGeolocation {
+  id                  String             @id @default(auto()) @map("_id") @db.ObjectId
+  env                 String
+  fetching            BoFetchingHistory? @relation(references: [id], fields: [boFetchingHistoryId])
+  boFetchingHistoryId String             @db.ObjectId
+  sourceId            String?
+  logicTest           LogicTest?         @relation(fields: [logicTestId], references: [id])
+  logicTestId         String             @db.ObjectId
+  requestBody         RequestBody
+  expectedResponse    ExpectResponse
 }
 
 model BoFetchingHistory {
-  id          Int             @id @default(autoincrement())
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
   env         String
   queryOption String
   data        BoGeolocation[]
   fetched     Int             @default(0)
   createdAt   DateTime        @default(now())
   finishedAt  DateTime?
-}
-
-model BoGeolocation {
-  id                  Int                @id @default(autoincrement())
-  env                 String
-  fetching            BoFetchingHistory? @relation(references: [id], fields: [boFetchingHistoryId])
-  boFetchingHistoryId Int?
-  sourceId            String?
-  logicTest           LogicTest?         @relation(fields: [logicTestId], references: [id])
-  logicTestId         Int?
 }
