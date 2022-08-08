@@ -9,3 +9,85 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id         Int         @id @default(autoincrement())
+  email      String      @unique
+  firstName  String
+  lastName   String
+  isAdmin    Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  deletedAt  DateTime?
+  logicTests LogicTest[]
+  loadTests  LoadTest[]
+}
+
+model PpeServer {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  type      String
+  env       String
+  url       String    @unique
+  version   String?
+  online    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  lastCheck DateTime
+
+  @@unique([type, env])
+}
+
+model LogicTest {
+  id           Int             @id @default(autoincrement())
+  name         String?
+  env          String
+  geolocations BoGeolocation[]
+  testcases    Testcase[]
+  testcaseId   Int
+  reports      String[]
+  createdAt    DateTime        @default(now())
+  author       User            @relation(references: [id], fields: [userId])
+  userId       Int
+}
+
+model LoadTest {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  env        String
+  reports    String[]
+  author     User     @relation(references: [id], fields: [userId])
+  userId     Int
+  testcase   Testcase @relation(fields: [testcaseId], references: [id])
+  testcaseId Int
+  createdAt  DateTime @default(now())
+}
+
+model Testcase {
+  id          Int        @id @default(autoincrement())
+  name        String
+  env         String
+  loadTest    LoadTest[]
+  logicTest   LogicTest? @relation(fields: [logicTestId], references: [id])
+  logicTestId Int?
+}
+
+model BoFetchingHistory {
+  id          Int             @id @default(autoincrement())
+  env         String
+  queryOption String
+  data        BoGeolocation[]
+  fetched     Int             @default(0)
+  createdAt   DateTime        @default(now())
+  finishedAt  DateTime?
+}
+
+model BoGeolocation {
+  id                  Int                @id @default(autoincrement())
+  env                 String
+  fetching            BoFetchingHistory? @relation(references: [id], fields: [boFetchingHistoryId])
+  boFetchingHistoryId Int?
+  sourceId            String?
+  logicTest           LogicTest?         @relation(fields: [logicTestId], references: [id])
+  logicTestId         Int?
+}
