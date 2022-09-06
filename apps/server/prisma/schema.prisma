@@ -28,7 +28,7 @@ model User {
   loadTests  LoadTest[]
 }
 
-model PpeServer {
+model Server {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   name       String      @unique
   type       ServerType  @default(QAT)
@@ -50,8 +50,8 @@ model LogicTest {
   id           String          @id @default(auto()) @map("_id") @db.ObjectId
   name         String?
   env          String
-  ppe          PpeServer       @relation(fields: [ppeServerId], references: [id])
-  ppeServerId  String          @db.ObjectId
+  server       Server          @relation(fields: [serverId], references: [id])
+  serverId     String          @db.ObjectId
   geolocations BoGeolocation[]
   testcases    Testcase[]
   testcaseId   Int
@@ -62,17 +62,17 @@ model LogicTest {
 }
 
 model LoadTest {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  name        String?
-  env         String
-  reports     String[]
-  ppe         PpeServer @relation(fields: [ppeServerId], references: [id])
-  ppeServerId String    @db.ObjectId
-  author      User      @relation(references: [id], fields: [userId])
-  userId      String    @db.ObjectId
-  testcase    Testcase  @relation(fields: [testcaseId], references: [id])
-  testcaseId  String    @db.ObjectId
-  createdAt   DateTime  @default(now())
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String?
+  env        String
+  reports    String[]
+  server     Server   @relation(fields: [serverId], references: [id])
+  serverId   String   @db.ObjectId
+  author     User     @relation(references: [id], fields: [userId])
+  userId     String   @db.ObjectId
+  testcase   Testcase @relation(fields: [testcaseId], references: [id])
+  testcaseId String   @db.ObjectId
+  createdAt  DateTime @default(now())
 }
 
 enum Solution {
